@@ -22,8 +22,8 @@ brew install jnersn/tap/store-previews
 ```
 
 Homebrew builds the tool from the release source, which takes about a minute.
-Or tap once, then use the short name: `brew tap jnersn/tap` and
-`brew install store-previews`.
+To use the short name `brew install store-previews`, tap and trust the tap
+once: `brew tap jnersn/tap && brew trust jnersn/tap`.
 
 With [Mint](https://github.com/yonaskolb/Mint): `mint install jnersn/store-previews`.
 
