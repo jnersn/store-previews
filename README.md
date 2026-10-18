@@ -15,14 +15,26 @@ The rendering is also available as a Swift library, `StorePreviewKit`.
 
 ## Install
 
+With [Homebrew](https://brew.sh):
+
+```sh
+brew install jnersn/tap/store-previews
+```
+
+Homebrew builds the tool from the release source, which takes about a minute.
+Or tap once, then use the short name: `brew tap jnersn/tap` and
+`brew install store-previews`.
+
+With [Mint](https://github.com/yonaskolb/Mint): `mint install jnersn/store-previews`.
+
+From source:
+
 ```sh
 git clone https://github.com/jnersn/store-previews.git
 cd store-previews
 swift build -c release
 cp .build/release/store-previews /usr/local/bin/   # or anywhere on your PATH
 ```
-
-With [Mint](https://github.com/yonaskolb/Mint): `mint install jnersn/store-previews`.
 
 If `swift` can't find the macOS SDK or XCTest, point it at Xcode:
 `export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
