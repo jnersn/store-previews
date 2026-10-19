@@ -197,7 +197,7 @@ store-previews -i . -h   # all flags
 
 ```swift
 // Package.swift
-.package(url: "https://github.com/jnersn/store-previews.git", from: "0.1.0"),
+.package(url: "https://github.com/jnersn/store-previews.git", from: "0.2.0"),
 // target dependency
 .product(name: "StorePreviewKit", package: "store-previews"),
 ```

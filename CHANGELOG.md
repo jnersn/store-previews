@@ -2,7 +2,7 @@
 
 The project uses semantic versioning. Before 1.0.0, a minor version may change the command line interface, the config format or the `StorePreviewKit` API.
 
-## Unreleased
+## 0.2.0
 
 - `store-previews render --background <hex>` and `--text-color <hex>` override the config's colors for one run.
 - Style key `gradient` (0 to 1, default 0.3) sets how much darker the bottom of the background is; `--gradient` sets it from the command line in both `render` and flag mode.
