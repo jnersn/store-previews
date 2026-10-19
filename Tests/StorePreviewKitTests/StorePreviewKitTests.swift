@@ -62,6 +62,24 @@ final class StorePreviewKitTests: XCTestCase {
         }
     }
 
+    func testStyleOverrideWinsOverConfig() throws {
+        try writeImage("screenshots/mac/a.png")
+        let config = ProjectConfig(
+            style: StyleConfig(background: "#202020", textColor: "#FFFFFF"),
+            targets: [TargetConfig(preset: "mac-16", style: StyleConfig(background: "#303030"))],
+            screens: [ScreenConfig(file: "a", style: StyleConfig(background: "#404040"))]
+        )
+        let options = try config.plan(baseDirectory: root, styleOverride: StyleConfig(background: "#E8E5E0", gradient: 0.1))
+            .jobs[0].options
+        XCTAssertEqual(options.backgroundColor, parseHexColor("#E8E5E0"))
+        XCTAssertEqual(options.textColor, parseHexColor("#FFFFFF"))
+        XCTAssertEqual(options.gradient, 0.1)
+        XCTAssertEqual(try config.plan(baseDirectory: root).jobs[0].options.gradient, 0.3)
+        XCTAssertThrowsError(try config.plan(baseDirectory: root, styleOverride: StyleConfig(gradient: 1.5))) { error in
+            XCTAssertEqual(error as? ConfigError, .invalidGradient(1.5))
+        }
+    }
+
     func testPlanOrdersScreensAndLocalizes() throws {
         try writeImage("screenshots/iphone/Second.PNG")
         try writeImage("screenshots/iphone/First.png")

@@ -5,7 +5,7 @@ let usage = """
 App Store Preview Generator
 
 Usage:
-  store-previews render <config.json> [--locale <id>] [--target <name>] [--clean] [--dry-run]
+  store-previews render <config.json> [--locale <id>] [--target <name>] [--clean] [--dry-run] [--background <hex>] [--text-color <hex>] [--gradient <0-1>]
   store-previews init <screenshots-folder> [-o <config.json>] [--preset <name>] [--force]
   store-previews presets
   store-previews -i <folder> [options]      One-off render from flags (run with -i -h for options)
@@ -14,6 +14,7 @@ render     Renders every target x locale x screen in the config. Output goes to
            <output>/[<locale>/]<target>/NN_<screen>.png, numbered in screen order.
            --locale / --target limit the run, --clean first deletes the NN_*.png
            files in the folders being written, --dry-run only lists the jobs.
+           --background / --text-color / --gradient override every style in the config.
 init       Writes a starter config next to the screenshots folder (default
            <folder>/../store-previews.json) with one target per mac/iphone/ipad
            subfolder and titles taken from the file names.
@@ -70,7 +71,7 @@ func displayPath(_ url: URL) -> String {
 }
 
 func runRender(_ args: ArraySlice<String>) throws {
-    let parsed = try ParsedArgs(args, valued: ["--locale", "--target"], flags: ["--clean", "--dry-run"])
+    let parsed = try ParsedArgs(args, valued: ["--locale", "--target", "--background", "--text-color", "--gradient"], flags: ["--clean", "--dry-run"])
     guard parsed.positionals.count == 1 else { throw CLIError("render takes one config file") }
     let configURL = absoluteURL(parsed.positionals[0])
     guard FileManager.default.fileExists(atPath: configURL.path) else {
@@ -78,10 +79,18 @@ func runRender(_ args: ArraySlice<String>) throws {
     }
 
     let config = try ProjectConfig.load(from: configURL)
+    var gradient: Double?
+    if let text = parsed.values["--gradient"] {
+        guard let value = Double(text) else { throw CLIError("--gradient needs a number from 0 to 1, got '\(text)'") }
+        gradient = value
+    }
     let plan = try config.plan(
         baseDirectory: configURL.deletingLastPathComponent(),
         locale: parsed.values["--locale"],
-        target: parsed.values["--target"]
+        target: parsed.values["--target"],
+        styleOverride: StyleConfig(
+            background: parsed.values["--background"], textColor: parsed.values["--text-color"], gradient: gradient
+        )
     )
     plan.warnings.forEach(warn)
     guard !plan.jobs.isEmpty else { throw CLIError("nothing to render") }

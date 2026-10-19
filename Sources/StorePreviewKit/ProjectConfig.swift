@@ -11,6 +11,8 @@ public struct StyleConfig: Codable, Equatable {
     public var cornerRadius: Double?
     public var padding: Double?
     public var shadow: Bool?
+    /// How much darker the bottom of the background is than the top, 0 (flat) to 1 (black).
+    public var gradient: Double?
 
     public init(
         background: String? = nil,
@@ -19,7 +21,8 @@ public struct StyleConfig: Codable, Equatable {
         fontSize: Double? = nil,
         cornerRadius: Double? = nil,
         padding: Double? = nil,
-        shadow: Bool? = nil
+        shadow: Bool? = nil,
+        gradient: Double? = nil
     ) {
         self.background = background
         self.textColor = textColor
@@ -28,6 +31,7 @@ public struct StyleConfig: Codable, Equatable {
         self.cornerRadius = cornerRadius
         self.padding = padding
         self.shadow = shadow
+        self.gradient = gradient
     }
 
     /// Returns `self` with unset fields taken from `base`.
@@ -40,11 +44,12 @@ public struct StyleConfig: Codable, Equatable {
             fontSize: fontSize ?? base.fontSize,
             cornerRadius: cornerRadius ?? base.cornerRadius,
             padding: padding ?? base.padding,
-            shadow: shadow ?? base.shadow
+            shadow: shadow ?? base.shadow,
+            gradient: gradient ?? base.gradient
         )
     }
 
-    public static let defaults = StyleConfig(background: "#1C1C1E", textColor: "#FFFFFF", shadow: true)
+    public static let defaults = StyleConfig(background: "#1C1C1E", textColor: "#FFFFFF", shadow: true, gradient: 0.3)
 }
 
 public struct CaptionConfig: Codable, Equatable {
@@ -166,6 +171,7 @@ public enum ConfigError: Error, Equatable, CustomStringConvertible {
     case duplicateTarget(String)
     case duplicateScreen(String)
     case invalidColor(String)
+    case invalidGradient(Double)
     case unknownLocale(String)
     case unknownTarget(String)
     case duplicateLocale(String)
@@ -182,6 +188,7 @@ public enum ConfigError: Error, Equatable, CustomStringConvertible {
         case .duplicateTarget(let name): return "two targets share the output name '\(name)'; set `name` on one"
         case .duplicateScreen(let file): return "screen '\(file)' is listed twice"
         case .invalidColor(let value): return "invalid color '\(value)', expected #RRGGBB"
+        case .invalidGradient(let value): return "invalid gradient \(value), expected a number from 0 to 1"
         case .unknownLocale(let locale): return "locale '\(locale)' is not in the config's locales"
         case .unknownTarget(let name): return "no target named '\(name)'"
         case .duplicateLocale(let locale): return "locale '\(locale)' is listed twice"

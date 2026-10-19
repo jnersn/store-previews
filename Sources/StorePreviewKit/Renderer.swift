@@ -99,6 +99,49 @@ func downsample(rep: NSBitmapImageRep, width: Int, height: Int) -> NSBitmapImage
     return outputRep
 }
 
+/// The part of `image` that is not transparent, in the image's own coordinates
+/// (bottom-left origin). A macOS window capture has its shadow baked in as a
+/// mostly transparent margin; the cutoff skips that shadow but keeps the window.
+/// Returns the full image rect when the image is fully opaque or can't be read.
+func opaqueBounds(of image: NSImage, alphaCutoff: UInt8 = 230) -> CGRect {
+    let full = CGRect(origin: .zero, size: image.size)
+    guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return full }
+    let w = cgImage.width, h = cgImage.height
+    guard w > 0, h > 0, cgImage.alphaInfo != .none, cgImage.alphaInfo != .noneSkipLast,
+          cgImage.alphaInfo != .noneSkipFirst else { return full }
+
+    // Draw into a known RGBA layout; rows run top to bottom.
+    var pixels = [UInt8](repeating: 0, count: w * h * 4)
+    let drawn = pixels.withUnsafeMutableBytes { buffer -> Bool in
+        guard let ctx = CGContext(
+            data: buffer.baseAddress, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
+            space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else { return false }
+        ctx.draw(cgImage, in: CGRect(x: 0, y: 0, width: w, height: h))
+        return true
+    }
+    guard drawn else { return full }
+
+    var minX = w, maxX = -1, minRow = h, maxRow = -1
+    for row in 0..<h {
+        let rowStart = row * w * 4
+        for x in 0..<w where pixels[rowStart + x * 4 + 3] >= alphaCutoff {
+            minX = min(minX, x); maxX = max(maxX, x)
+            minRow = min(minRow, row); maxRow = max(maxRow, row)
+        }
+    }
+    guard maxX >= minX, maxRow >= minRow else { return full }
+
+    let sx = image.size.width / CGFloat(w)
+    let sy = image.size.height / CGFloat(h)
+    return CGRect(
+        x: CGFloat(minX) * sx,
+        y: CGFloat(h - 1 - maxRow) * sy,
+        width: CGFloat(maxX - minX + 1) * sx,
+        height: CGFloat(maxRow - minRow + 1) * sy
+    )
+}
+
 /// Renders one App Store preview and returns it as PNG data.
 public func renderPreview(screenshot: NSImage, options: RenderOptions) throws -> Data {
     let cw = CGFloat(options.width)
@@ -129,10 +172,11 @@ public func renderPreview(screenshot: NSImage, options: RenderOptions) throws ->
         let background = options.backgroundColor.usingColorSpace(.sRGB) ?? .black
         let topColor = background.cgColor
         // Derive bottom color: darken by blending toward black
+        let keep = 1 - min(max(options.gradient, 0), 1)
         let bottomColor = NSColor(
-            red: background.redComponent * 0.7,
-            green: background.greenComponent * 0.7,
-            blue: background.blueComponent * 0.7,
+            red: background.redComponent * keep,
+            green: background.greenComponent * keep,
+            blue: background.blueComponent * keep,
             alpha: 1
         ).cgColor
         let colors = [topColor, bottomColor] as CFArray
@@ -245,40 +289,25 @@ func drawMacPreview(screenshot: NSImage, options: RenderOptions, context cg: CGC
         }
     }
 
-    // 3. Screenshot placement — anchored at top, overflows bottom edge
-    let screenshotSize = screenshot.size
+    // 3. Screenshot placement — the whole window fits below the caption.
+    //    macOS window captures carry their own shadow as a transparent margin;
+    //    trim it so the window itself is what gets fitted and centered.
+    let sourceRect = opaqueBounds(of: screenshot)
     let screenshotAreaTop = titleZoneBottom - ch * 0.02
+    let bottomPadding = ch * 0.06  // room for the drop shadow
     let screenshotSidePadding = sidePadding * 0.6  // tighter padding for the screenshot
     let availableWidth = cw - screenshotSidePadding * 2
+    let availableHeight = max(1, screenshotAreaTop - bottomPadding)
 
-    // Scale to fill available width; height overflows naturally at bottom
-    let scale = availableWidth / screenshotSize.width
-    let scaledW = screenshotSize.width * scale
-    let scaledH = screenshotSize.height * scale
+    let scale = min(availableWidth / sourceRect.width, availableHeight / sourceRect.height)
+    let scaledW = sourceRect.width * scale
+    let scaledH = sourceRect.height * scale
 
     let ssX = (cw - scaledW) / 2
-    let ssY = screenshotAreaTop - scaledH  // negative = overflows past bottom edge
+    let ssY = bottomPadding + (availableHeight - scaledH) / 2
 
     let screenshotRect = CGRect(x: ssX, y: ssY, width: scaledW, height: scaledH)
     let cornerRadius = options.cornerRadius >= 0 ? options.cornerRadius : 20
-
-    // Helper: path with only top corners rounded (bottom extends off-canvas)
-    func topRoundedRectPath(_ rect: CGRect, radius: CGFloat) -> CGPath {
-        let path = CGMutablePath()
-        let minX = rect.minX, maxX = rect.maxX
-        let minY = rect.minY, maxY = rect.maxY
-        let r = min(radius, rect.width / 2, rect.height / 2)
-        path.move(to: CGPoint(x: minX, y: minY))                          // bottom-left
-        path.addLine(to: CGPoint(x: maxX, y: minY))                       // bottom-right
-        path.addLine(to: CGPoint(x: maxX, y: maxY - r))                   // right edge up
-        path.addArc(tangent1End: CGPoint(x: maxX, y: maxY),
-                    tangent2End: CGPoint(x: maxX - r, y: maxY), radius: r) // top-right corner
-        path.addLine(to: CGPoint(x: minX + r, y: maxY))                   // top edge
-        path.addArc(tangent1End: CGPoint(x: minX, y: maxY),
-                    tangent2End: CGPoint(x: minX, y: maxY - r), radius: r) // top-left corner
-        path.closeSubpath()
-        return path
-    }
 
     // 4. Draw screenshot with shadow using a transparency layer
     //    The shadow is derived from the layer's alpha, so it follows the
@@ -287,19 +316,24 @@ func drawMacPreview(screenshot: NSImage, options: RenderOptions, context cg: CGC
     cg.saveGState()
     if options.shadowEnabled {
         cg.setShadow(
-            offset: CGSize(width: 0, height: -10),
-            blur: 40,
+            offset: CGSize(width: 0, height: -ch * 0.01),
+            blur: ch * 0.04,
             color: NSColor.black.withAlphaComponent(0.5).cgColor
         )
     }
     cg.beginTransparencyLayer(auxiliaryInfo: nil)
 
-    let clipPath = topRoundedRectPath(screenshotRect, radius: cornerRadius)
+    let clipPath = CGPath(
+        roundedRect: screenshotRect,
+        cornerWidth: min(cornerRadius, scaledW / 2, scaledH / 2),
+        cornerHeight: min(cornerRadius, scaledW / 2, scaledH / 2),
+        transform: nil
+    )
     cg.addPath(clipPath)
     cg.clip()
     screenshot.draw(
         in: screenshotRect,
-        from: NSRect(origin: .zero, size: screenshotSize),
+        from: sourceRect,
         operation: .sourceOver,
         fraction: 1.0
     )

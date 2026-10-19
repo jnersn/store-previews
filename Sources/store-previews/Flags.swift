@@ -24,6 +24,7 @@ Options:
   --corner-radius <px>        Screenshot/device corner radius (default: auto)
   --padding <px>              Side padding in pixels (default: auto)
   --no-shadow                 Disable drop shadow
+  --gradient <0-1>            How much darker the bottom of the background is (default: 0.3, 0 = flat)
   -h, --help                  Show this help
 """
 
@@ -48,6 +49,7 @@ func parseFlagArgs(_ args: [String]) throws -> FlagsConfig? {
     var cornerRadius: CGFloat = -1
     var padding: CGFloat = 0
     var shadow = true
+    var gradient: CGFloat = 0.3
 
     var i = 0
     func value(_ arg: String) throws -> String {
@@ -89,6 +91,9 @@ func parseFlagArgs(_ args: [String]) throws -> FlagsConfig? {
         case "--corner-radius": cornerRadius = try number(arg)
         case "--padding": padding = try number(arg)
         case "--no-shadow": shadow = false
+        case "--gradient":
+            gradient = try number(arg)
+            guard gradient <= 1 else { throw CLIError("--gradient needs a number from 0 to 1, got \(gradient)") }
         case "-h", "--help": print(flagsUsage); return nil
         default: throw CLIError("Unknown option: \(arg)\n\n\(flagsUsage)")
         }
@@ -115,7 +120,8 @@ func parseFlagArgs(_ args: [String]) throws -> FlagsConfig? {
             fontSize: fontSize,
             cornerRadius: cornerRadius,
             padding: padding,
-            shadowEnabled: shadow
+            shadowEnabled: shadow,
+            gradient: gradient
         )
     )
 }

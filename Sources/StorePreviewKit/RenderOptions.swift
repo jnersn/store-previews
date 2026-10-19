@@ -56,6 +56,7 @@ public struct RenderOptions {
     public var cornerRadius: CGFloat    // < 0 = auto
     public var padding: CGFloat         // 0 = auto
     public var shadowEnabled: Bool
+    public var gradient: CGFloat        // 0 = flat, 1 = bottom fades to black
 
     public init(
         width: Int,
@@ -69,7 +70,8 @@ public struct RenderOptions {
         fontSize: CGFloat = 0,
         cornerRadius: CGFloat = -1,
         padding: CGFloat = 0,
-        shadowEnabled: Bool = true
+        shadowEnabled: Bool = true,
+        gradient: CGFloat = 0.3
     ) {
         self.width = width
         self.height = height
@@ -83,6 +85,7 @@ public struct RenderOptions {
         self.cornerRadius = cornerRadius
         self.padding = padding
         self.shadowEnabled = shadowEnabled
+        self.gradient = gradient
     }
 }
 

@@ -80,7 +80,7 @@ control.
 ## Commands
 
 ```
-store-previews render <config.json> [--locale <id>] [--target <name>] [--clean] [--dry-run]
+store-previews render <config.json> [--locale <id>] [--target <name>] [--clean] [--dry-run] [--background <hex>] [--text-color <hex>] [--gradient <0-1>]
 store-previews init <screenshots-folder> [-o <config.json>] [--preset <name>] [--force]
 store-previews presets
 store-previews -i <folder> [options]
@@ -92,6 +92,8 @@ store-previews -i <folder> [options]
 | `--target <name>` | Render only this target (its output folder name) |
 | `--clean` | Delete the `NN_*.png` files in the folders being written first, so removed or renamed screens don't linger |
 | `--dry-run` | List screenshot → output → title without rendering |
+| `--background` / `--text-color` | `#RRGGBB` that overrides every `background` / `textColor` in the config, for trying colors without editing it |
+| `--gradient <0-1>` | Overrides every `gradient` in the config |
 
 `render` prints warnings on stderr for screenshots that aren't listed in the
 config, listed screens missing from a target's folder, and untranslated
@@ -168,9 +170,11 @@ Style keys, all optional: `background` and `textColor` (`#RRGGBB`), `fontName`
 (the PostScript name of a font installed on the Mac, such as `Avenir-Heavy`; an
 unknown name falls back to the default font), `fontSize` (title size in pixels;
 the subtitle scales with it), `cornerRadius` and `padding` (pixels),
-`shadow` (true or false). A screen's `style` overrides its target's, which
+`shadow` (true or false), `gradient` (how much darker the bottom of the
+background is than the top, from `0` for a flat color to `1` for black; a light
+background looks best around `0.1`). A screen's `style` overrides its target's, which
 overrides the project's, which overrides the defaults: `#1C1C1E` background,
-white text, the rounded system font, automatic sizes, shadow on.
+white text, the rounded system font, automatic sizes, shadow on, gradient `0.3`.
 
 On iPhone and iPad targets a title without `\n` breaks after its third word;
 add your own `\n` to break it elsewhere. Target names and locales become folder

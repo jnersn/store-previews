@@ -29,10 +29,13 @@ struct ResolvedTarget {
 extension ProjectConfig {
     /// Resolves the config into render jobs. Paths are relative to `baseDirectory`
     /// (the folder holding the config file). `locale` and `target` limit the plan.
+    /// `styleOverride` wins over every style in the config, e.g. a background
+    /// given on the command line.
     public func plan(
         baseDirectory: URL,
         locale onlyLocale: String? = nil,
         target onlyTarget: String? = nil,
+        styleOverride: StyleConfig? = nil,
         fileManager: FileManager = .default
     ) throws -> RenderPlan {
         guard !targets.isEmpty else { throw ConfigError.noTargets }
@@ -142,7 +145,8 @@ extension ProjectConfig {
                         subtitle = caption?.subtitle ?? subtitle
                     }
 
-                    let merged = (screen.style ?? StyleConfig())
+                    let merged = (styleOverride ?? StyleConfig())
+                        .over(screen.style)
                         .over(target.style)
                         .over(style)
                         .over(.defaults)
@@ -234,6 +238,8 @@ func renderOptions(style: StyleConfig, target: ResolvedTarget, title: String, su
     let textHex = style.textColor ?? StyleConfig.defaults.textColor!
     guard let background = parseHexColor(backgroundHex) else { throw ConfigError.invalidColor(backgroundHex) }
     guard let text = parseHexColor(textHex) else { throw ConfigError.invalidColor(textHex) }
+    let gradient = style.gradient ?? StyleConfig.defaults.gradient!
+    guard (0...1).contains(gradient) else { throw ConfigError.invalidGradient(gradient) }
     return RenderOptions(
         width: target.width,
         height: target.height,
@@ -246,7 +252,8 @@ func renderOptions(style: StyleConfig, target: ResolvedTarget, title: String, su
         fontSize: CGFloat(style.fontSize ?? 0),
         cornerRadius: CGFloat(style.cornerRadius ?? -1),
         padding: CGFloat(style.padding ?? 0),
-        shadowEnabled: style.shadow ?? true
+        shadowEnabled: style.shadow ?? true,
+        gradient: CGFloat(gradient)
     )
 }
 
